@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="fr">
+<head>
+    <title>Gérer les Questions</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <style>
+        /* Maintain existing design system */
+        :root {
+            --couleur-bleu-clair: #6c9bcf;
+            --couleur-vert-clair: #4CAF50;
+        }
+
+        .question-table {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            overflow: hidden;
+        }
+
+        .answer-card {
+            background: #f8fafc;
+            border-left: 3px solid var(--couleur-bleu-clair);
+            margin: 10px 0;
+            padding: 12px;
+            border-radius: 4px;
+        }
+
+        .correct-answer {
+            border-left-color: var(--couleur-vert-clair);
+            background: #f0faf1;
+        }
+
+        .subject-badge {
+            background: var(--couleur-bleu-clair);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+<div class="sidebar">
+    <!-- Maintain existing sidebar -->
+</div>
+
+<div class="content">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Gestion des Questions</h1>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#questionModal">
+            + Nouvelle Question
+        </button>
+    </div>
+
+    <!-- Search/Filter Bar -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <input type="text" class="form-control" placeholder="Rechercher par question...">
+        </div>
+        <div class="col-md-4">
+            <select class="form-select">
+                <option>Tous les sujets</option>
+                <option th:each="subject : ${subjects}" th:text="${subject.name}"></option>
+            </select>
+        </div>
+    </div>
+    <!-- Add to existing modal body -->
+    <div class="modal-body">
+        <!-- Drag & Drop Zone -->
+        <div class="drop-zone mb-4 p-4 border-2 border-dashed rounded text-center"
+             ondragover="handleDragOver(event)"
+             ondragleave="handleDragLeave(event)"
+             ondrop="handleDrop(event)">
+            <input type="file" id="docxInput" hidden accept=".docx" @change="handleFileSelect">
+            <p class="text-muted">Glissez un fichier DOCX ici ou <a href="#" onclick="document.getElementById('docxInput').click()">cliquez pour upload</a></p>
+        </div>
+
+        <!-- Subject/Chapter Row -->
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <div class="d-flex gap-2">
+                    <select class="form-select" name="subjectId" id="subjectSelect">
+                        <option th:each="subject : ${subjects}"
+                                th:value="${subject.id}"
+                                th:text="${subject.name}"></option>
+                    </select>
+                    <button type="button" class="btn btn-sm btn-outline-primary"
+                            onclick="showAddSubjectModal()">+</button>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="d-flex gap-2">
+                    <select class="form-select" name="chapterId" id="chapterSelect">
+                        <option th:each="chapter : ${chapters}"
+                                th:value="${chapter.id}"
+                                th:text="${chapter.name}"></option>
+                    </select>
+                    <button type="button" class="btn btn-sm btn-outline-primary"
+                            onclick="showAddChapterModal()">+</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Rest of existing form elements remain unchanged -->
+    </div>
+
+    <!-- Add Subject Modal -->
+    <div class="modal fade" id="addSubjectModal">
+        <div class="modal-dialog modal-sm">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Nouveau Sujet</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="text" id="newSubjectName" class="form-control" placeholder="Nom du sujet">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" onclick="addNewSubject()">Ajouter</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Chapter Modal -->
+    <div class="modal fade" id="addChapterModal">
+        <div class="modal-dialog modal-sm">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Nouveau Chapitre</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="text" id="newChapterName" class="form-control" placeholder="Nom du chapitre">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" onclick="addNewChapter()">Ajouter</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        /* Add to existing styles */
+        .drop-zone {
+            border-color: var(--couleur-bleu-clair);
+            transition: all 0.3s ease;
+        }
+
+        .drop-zone.dragover {
+            background-color: rgba(108, 155, 207, 0.1);
+            border-color: var(--couleur-bleu-clair);
+        }
+    </style>
+
+    <script>
+        // Add to existing script
+        let importedQuestions = [];
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.target.classList.add('dragover');
+        }
+
+        function handleDragLeave(e) {
+            e.preventDefault();
+            e.target.classList.remove('dragover');
+        }
+
+        async function handleDrop(e) {
+            e.preventDefault();
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                await handleDocxFile(files[0]);
+            }
+        }
+
+        async function handleFileSelect(e) {
+            if (e.target.files.length > 0) {
+                await handleDocxFile(e.target.files[0]);
+            }
+        }
+
+        async function handleDocxFile(file) {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch('/admin/questions/upload-docx', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    importedQuestions = data.questions;
+                    populateFirstQuestion();
+                }
+            } catch (error) {
+                console.error('Upload failed:', error);
+            }
+        }
+
+        function populateFirstQuestion() {
+            if (importedQuestions.length > 0) {
+                const firstQuestion = importedQuestions[0];
+                document.querySelector('[name="text"]').value = firstQuestion.text;
+                // Populate answers...
+            }
+        }
+
+        function showAddSubjectModal() {
+            new bootstrap.Modal('#addSubjectModal').show();
+        }
+
+        async function addNewSubject() {
+            const name = document.getElementById('newSubjectName').value;
+            const response = await fetch('/admin/subjects', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({name})
+            });
+
+            if (response.ok) {
+                const newSubject = await response.json();
+                const option = new Option(newSubject.name, newSubject.id);
+                document.getElementById('subjectSelect').appendChild(option);
+                new bootstrap.Modal('#addSubjectModal').hide();
+            }
+        }
+
+        function showAddChapterModal() {
+            new bootstrap.Modal('#addChapterModal').show();
+        }
+
+        async function addNewChapter() {
+            const name = document.getElementById('newChapterName').value;
+            const subjectId = document.getElementById('subjectSelect').value;
+
+            const response = await fetch('/admin/chapters', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({name, subjectId})
+            });
+
+            if (response.ok) {
+                const newChapter = await response.json();
+                const option = new Option(newChapter.name, newChapter.id);
+                document.getElementById('chapterSelect').appendChild(option);
+                new bootstrap.Modal('#addChapterModal').hide();
+            }
+        }
+    </script>
+    <!-- Questions Table -->
+    <div class="question-table">
+        <table class="table table-hover">
+            <thead>
+            <tr>
+                <th>Question</th>
+                <th>Sujet</th>
+                <th>Chapitre</th>
+                <th>Actions</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="question : ${questions}">
+                <td>
+                    <div th:text="${question.text}"></div>
+                    <div class="answers-container mt-2">
+                        <div th:each="answer : ${question.answers}"
+                             class="answer-card"
+                             th:classappend="${answer.correct} ? 'correct-answer'">
+                            <div th:text="${answer.text}"></div>
+                            <div class="text-muted small mt-1" th:text="'Note: ' + ${answer.explanation}"></div>
+                        </div>
+                    </div>
+                </td>
+                <td>
+                    <span class="subject-badge" th:text="${question.chapter.subject.name}"></span>
+                </td>
+                <td th:text="${question.chapter.name}"></td>
+                <td>
+                    <button class="btn btn-sm btn-outline-primary">Modifier</button>
+                    <button class="btn btn-sm btn-outline-danger">Supprimer</button>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Question Modal -->
+    <div class="modal fade" id="questionModal">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Nouvelle Question</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form th:action="@{/admin/questions}" method="POST">
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">Question</label>
+                            <textarea class="form-control" name="text" required></textarea>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Sujet</label>
+                                <select class="form-select" name="subjectId">
+                                    <option th:each="subject : ${subjects}"
+                                            th:value="${subject.id}"
+                                            th:text="${subject.name}"></option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Chapitre</label>
+                                <select class="form-select" name="chapterId">
+                                    <option th:each="chapter : ${chapters}"
+                                            th:value="${chapter.id}"
+                                            th:text="${chapter.name}"></option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="answers-section">
+                            <div class="answer-group mb-3">
+                                <div class="d-flex gap-2 mb-2">
+                                    <input type="text" class="form-control" placeholder="Réponse" name="answers[0].text" required>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="answers[0].correct">
+                                        <label class="form-check-label">Correcte</label>
+                                    </div>
+                                </div>
+                                <textarea class="form-control" placeholder="Explication" name="answers[0].explanation"></textarea>
+                            </div>
+                        </div>
+
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="addAnswerField()">
+                            + Ajouter une réponse
+                        </button>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="submit" class="btn btn-primary">Enregistrer</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    let answerCount = 1;
+
+    function addAnswerField() {
+        const container = document.querySelector('.answers-section');
+        const newAnswer = document.createElement('div');
+        newAnswer.className = 'answer-group mb-3';
+        newAnswer.innerHTML = `
+            <div class="d-flex gap-2 mb-2">
+                <input type="text" class="form-control" placeholder="Réponse"
+                       name="answers[${answerCount}].text" required>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox"
+                           name="answers[${answerCount}].correct">
+                    <label class="form-check-label">Correcte</label>
+                </div>
+            </div>
+            <textarea class="form-control" placeholder="Explication"
+                      name="answers[${answerCount}].explanation"></textarea>
+        `;
+        container.appendChild(newAnswer);
+        answerCount++;
+    }
+</script>
+</body>
+</html>
