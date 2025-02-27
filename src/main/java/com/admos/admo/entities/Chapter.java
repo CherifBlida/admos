@@ -17,6 +17,14 @@ public class Chapter extends BaseEntity {
     @JoinColumn(name = "subject_id", nullable = false)
     private Subject subject;
 
+    public List<Quiz> getQuizzes() {
+        return quizzes;
+    }
+
+    public void setQuizzes(List<Quiz> quizzes) {
+        this.quizzes = quizzes;
+    }
+
     @OneToMany(mappedBy = "chapter", cascade = CascadeType.ALL)
     private List<Question> questions = new ArrayList<>();
 

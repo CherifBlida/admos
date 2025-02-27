@@ -6,14 +6,19 @@ import org.springframework.ui.Model;
 
 @Controller
 public class homeControllers {
-    @GetMapping("/")
+    @GetMapping("/home")
     public String home(Model model) {
         model.addAttribute("message", "Hello, World!");
         return "home"; // This corresponds to the name of your Thymeleaf template (home.html)
     }
-    @GetMapping("/questions")
+   /* @GetMapping("/questions22")
     public String show_questions(){
 
         return "question";
     }
+    @GetMapping("/questions2")
+    public String show_questions2(){
+
+        return "questions_2";
+    }*/
 ;}

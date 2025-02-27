@@ -4,23 +4,29 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
-public class SubjectDTO {
+public class SubjectDTO extends BaseDTO{
     // For creating/updating subjects
-    public record SubjectRequest(
-            @NotBlank
-            @Size(max = 100) String name
-    ) {}
+    @NotBlank(message = "Subject name is required")
+    @Size(max = 100, message = "Subject name must be 100 characters or less")
+    private String name;
+    private List<Long> chapterIds = new ArrayList<>();
 
-    // For API responses
-    public record SubjectResponse(
-            Long id,
-            String name,
-            LocalDateTime createdAt,
-            List<ChapterSimpleResponse> chapters
-    ) {}
+    public String getName() {
+        return name;
+    }
 
-    // Simplified chapter response
-    public record ChapterSimpleResponse(Long id, String name) {}
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public List<Long> getChapterIds() {
+        return chapterIds;
+    }
+
+    public void setChapterIds(List<Long> chapterIds) {
+        this.chapterIds = chapterIds;
+    }
 }

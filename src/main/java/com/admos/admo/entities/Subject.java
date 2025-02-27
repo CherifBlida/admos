@@ -37,5 +37,5 @@ public class Subject extends BaseEntity {
         this.chapters = chapters;
     }
 
-    // Constructors, getters, setters
+
 }

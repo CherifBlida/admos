@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="fr" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Gérer les Questions</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <style>
+        :root {
+            --couleur-bleu-clair: #6c9bcf;
+            --couleur-vert-clair: #4CAF50;
+        }
+        .question-table { background: white; border-radius: 10px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); overflow: hidden; }
+        .answer-card { background: #f8fafc; border-left: 3px solid var(--couleur-bleu-clair); margin: 10px 0; padding: 12px; border-radius: 4px; }
+        .correct-answer { border-left-color: var(--couleur-vert-clair); background: #f0faf1; }
+        .subject-badge { background: var(--couleur-bleu-clair); color: white; padding: 4px 12px; border-radius: 20px; font-size: 0.9em; }
+        #questionModal .drop-zone, #editQuestionModal .drop-zone { border: 2px dashed var(--couleur-bleu-clair); transition: all 0.3s ease; background: rgba(108, 155, 207, 0.05); }
+        #questionModal .drop-zone.dragover, #editQuestionModal .drop-zone.dragover { background: rgba(108, 155, 207, 0.1); }
+        .answer-group .form-check-label { user-select: none; }
+    </style>
+</head>
+<body>
+<div class="container-fluid p-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Gestion des Questions</h1>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#questionModal">
+            + Nouvelle Question
+        </button>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <input type="text" id="searchInput" class="form-control" placeholder="Rechercher par question...">
+        </div>
+        <div class="col-md-4">
+            <select class="form-select" id="subjectFilter">
+                <option value="">Tous les sujets</option>
+                <option th:each="subject : ${subjects}" th:value="${subject.id}" th:text="${subject.name}"></option>
+            </select>
+        </div>
+    </div>
+
+    <div class="question-table">
+        <table class="table table-hover">
+            <thead>
+            <tr>
+                <th>Question</th>
+                <th>Sujet</th>
+                <th>Chapitre</th>
+                <th>Actions</th>
+            </tr>
+            </thead>
+            <tbody id="questionTable">
+            <tr th:each="question : ${questions}">
+                <td>
+                    <div th:text="${question.text}"></div>
+                    <div class="answers-container mt-2">
+                        <div th:each="answer : ${question.answers}"
+                             th:class="'answer-card' + (${answer.correct} ? ' correct-answer' : '')">
+                            <div th:text="${answer.text}"></div>
+                            <div class="text-muted small mt-1" th:text="'Note: ' + ${answer.explanation}"></div>
+                        </div>
+                    </div>
+                </td>
+                <td><span class="subject-badge" th:text="${question.chapter.subject.name}"></span></td>
+                <td th:text="${question.chapter.name}"></td>
+                <td>
+                    <button class="btn btn-sm btn-outline-primary" th:data-id="${question.id}">Modifier</button>
+                    <button class="btn btn-sm btn-outline-danger" th:data-id="${question.id}" onclick="deleteQuestion(this)">Supprimer</button>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+        <div class="p-3">
+            <nav aria-label="Pagination">
+                <ul class="pagination justify-content-center">
+                    <li class="page-item"><a class="page-link active" href="#">1</a></li>
+                    <li class="page-item"><a class="page-link" href="#">2</a></li>
+                    <li class="page-item"><a class="page-link" href="#">3</a></li>
+                </ul>
+            </nav>
+        </div>
+    </div>
+
+    <!-- Add Question Modal -->
+    <div class="modal fade" id="questionModal">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Nouvelle Question</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form id="questionForm">
+                    <div class="modal-body">
+                        <div class="drop-zone mb-4 p-4 rounded text-center"
+                             ondragover="handleDragOver(event)"
+                             ondragleave="handleDragLeave(event)"
+                             ondrop="handleDrop(event)"
+                             id="dropZone">
+                            <input type="file" id="docxInput" hidden accept=".docx">
+                            <p class="text-muted mb-0">
+                                Glissez un fichier DOCX ici ou
+                                <a href="#" onclick="document.getElementById('docxInput').click()">cliquez pour upload</a>
+                            </p>
+                            <small class="text-danger" id="fileError"></small>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Sujet</label>
+                                <div class="d-flex gap-2">
+                                    <select class="form-select" id="subjectSelect" required>
+                                        <option value="">Choisir un sujet...</option>
+                                        <option th:each="subject : ${subjects}" th:value="${subject.id}"
+                                                th:text="${subject.name}"></option>
+                                    </select>
+                                    <button type="button" class="btn btn-sm btn-outline-primary"
+                                            onclick="showAddSubjectModal()">+</button>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Chapitre</label>
+                                <div class="d-flex gap-2">
+                                    <select class="form-select" id="chapterSelect" required>
+                                        <option value="">Choisir un chapitre...</option>
+                                    </select>
+                                    <button type="button" class="btn btn-sm btn-outline-primary"
+                                            onclick="showAddChapterModal()">+</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Question</label>
+                            <textarea class="form-control" id="questionText" required></textarea>
+                        </div>
+
+                        <div class="answers-section" id="answersSection">
+                            <div class="answer-group mb-3">
+                                <div class="d-flex gap-2 mb-2">
+                                    <input type="text" class="form-control answer-text" placeholder="Réponse" required>
+                                    <div class="form-check">
+                                        <input class="form-check-input correct-radio" type="radio" name="correctAnswer" required>
+                                        <label class="form-check-label">Correcte</label>
+                                    </div>
+                                </div>
+                                <textarea class="form-control answer-explanation" placeholder="Explication"></textarea>
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="addAnswerField()">
+                            + Ajouter une réponse
+                        </button>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="submit" class="btn btn-primary">Enregistrer</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Subject Modal -->
+    <div class="modal fade" id="addSubjectModal">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Nouveau Sujet</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form id="subjectForm">
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">Nom du Sujet</label>
+                            <input type="text" class="form-control" id="subjectName" required>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="submit" class="btn btn-primary">Ajouter</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Chapter Modal -->
+    <div class="modal fade" id="addChapterModal">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Nouveau Chapitre</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form id="chapterForm">
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">Nom du Chapitre</label>
+                            <input type="text" class="form-control" id="chapterName" required>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="submit" class="btn btn-primary">Ajouter</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Question Modal -->
+    <div class="modal fade" id="editQuestionModal">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Modifier Question</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form id="editQuestionForm">
+                    <div class="modal-body">
+                        <input type="hidden" id="editQuestionId">
+                        <input type="hidden" id="editChapterId">
+                        <div class="mb-3">
+                            <label class="form-label">Question</label>
+                            <textarea class="form-control" id="editQuestionText" required></textarea>
+                        </div>
+                        <div class="answers-section" id="editAnswersSection">
+                            <!-- Answers will be populated here -->
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="addEditAnswerField()">
+                            + Ajouter une réponse
+                        </button>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="submit" class="btn btn-primary">Enregistrer</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    console.log("Script starting");
+
+    function addAnswerField() {
+        console.log("Adding answer field");
+        const container = $('#answersSection');
+        const newAnswer = `
+            <div class="answer-group mb-3">
+                <div class="d-flex gap-2 mb-2">
+                    <input type="text" class="form-control answer-text" placeholder="Réponse" required>
+                    <div class="form-check">
+                        <input class="form-check-input correct-radio" type="radio" name="correctAnswer" required>
+                        <label class="form-check-label">Correcte</label>
+                    </div>
+                </div>
+                <textarea class="form-control answer-explanation" placeholder="Explication"></textarea>
+            </div>`;
+        container.append(newAnswer);
+    }
+
+    function addEditAnswerField() {
+        console.log("Adding edit answer field");
+        const container = $('#editAnswersSection');
+        const newAnswer = `
+            <div class="answer-group mb-3">
+                <div class="d-flex gap-2 mb-2">
+                    <input type="text" class="form-control answer-text" placeholder="Réponse" required>
+                    <div class="form-check">
+                        <input class="form-check-input correct-radio" type="radio" name="editCorrectAnswer" required>
+                        <label class="form-check-label">Correcte</label>
+                    </div>
+                </div>
+                <textarea class="form-control answer-explanation" placeholder="Explication"></textarea>
+            </div>`;
+        container.append(newAnswer);
+    }
+
+    $('#subjectSelect').change(function() {
+        console.log("Subject select changed");
+        const subjectId = $(this).val();
+        if (subjectId) {
+            $.get(`/questions/chapters?subjectId=${subjectId}`, function(chapters) {
+                console.log("Fetched chapters:", chapters);
+                const chapterSelect = $('#chapterSelect');
+                chapterSelect.empty().append('<option value="">Choisir un chapitre...</option>');
+                chapters.forEach(chapter => {
+                    chapterSelect.append(`<option value="${chapter.id}">${chapter.name}</option>`);
+                });
+            });
+        }
+    });
+
+    function showAddSubjectModal() {
+        console.log("Showing add subject modal");
+        $('#addSubjectModal').modal('show');
+    }
+
+    function showAddChapterModal() {
+        console.log("Showing add chapter modal");
+        if (!$('#subjectSelect').val()) {
+            alert('Veuillez sélectionner un sujet d\'abord');
+            return;
+        }
+        $('#addChapterModal').modal('show');
+    }
+
+    $('#subjectForm').submit(function(e) {
+        e.preventDefault();
+        console.log("Submitting subject form");
+        const dto = { name: $('#subjectName').val() };
+        $.ajax({
+            url: '/questions/subjects',
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify(dto),
+            success: function(subject) {
+                console.log("Subject added:", subject);
+                $('#subjectSelect').append(`<option value="${subject.id}">${subject.name}</option>`);
+                $('#addSubjectModal').modal('hide');
+                $('#subjectName').val('');
+            }
+        });
+    });
+
+    $('#chapterForm').submit(function(e) {
+        e.preventDefault();
+        console.log("Submitting chapter form");
+        const dto = { name: $('#chapterName').val(), subjectId: $('#subjectSelect').val() };
+        $.ajax({
+            url: '/questions/chapters',
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify(dto),
+            success: function(chapter) {
+                console.log("Chapter added:", chapter);
+                $('#chapterSelect').append(`<option value="${chapter.id}">${chapter.name}</option>`);
+                $('#addChapterModal').modal('hide');
+                $('#chapterName').val('');
+            }
+        });
+    });
+
+    $('#questionForm').submit(function(e) {
+        e.preventDefault();
+        console.log("Submitting question form");
+        if (!$('input[name="correctAnswer"]:checked').length) {
+            alert('Veuillez sélectionner une réponse correcte');
+            return;
+        }
+        const dto = {
+            text: $('#questionText').val(),
+            chapterId: $('#chapterSelect').val(),
+            answers: []
+        };
+        $('.answer-group').each(function() {
+            dto.answers.push({
+                text: $(this).find('.answer-text').val(),
+                correct: $(this).find('.correct-radio').is(':checked'),
+                explanation: $(this).find('.answer-explanation').val()
+            });
+        });
+        $.ajax({
+            url: '/questions',
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify(dto),
+            success: function(newQuestion) {
+                console.log("Question added:", newQuestion);
+                const row = `
+                    <tr>
+                        <td>
+                            <div>${newQuestion.text}</div>
+                            <div class="answers-container mt-2">
+                                ${newQuestion.answers.map(a => `
+                                    <div class="${a.correct ? 'answer-card correct-answer' : 'answer-card'}">
+                                        <div>${a.text}</div>
+                                        <div class="text-muted small mt-1">Note: ${a.explanation || ''}</div>
+                                    </div>`).join('')}
+                            </div>
+                        </td>
+                        <td><span class="subject-badge">${$('#subjectSelect option:selected').text()}</span></td>
+                        <td>${$('#chapterSelect option:selected').text()}</td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary" data-id="${newQuestion.id}">Modifier</button>
+                            <button class="btn btn-sm btn-outline-danger" data-id="${newQuestion.id}" onclick="deleteQuestion(this)">Supprimer</button>
+                        </td>
+                    </tr>`;
+                $('#questionTable').append(row);
+                $('#questionModal').modal('hide');
+                $('#questionForm')[0].reset();
+                $('#answersSection').html($('#answersSection').children().first().clone());
+            }
+        });
+    });
+
+    function handleDragOver(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log("Drag over");
+        $('#dropZone').addClass('dragover');
+    }
+
+    function handleDragLeave(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log("Drag leave");
+        $('#dropZone').removeClass('dragover');
+    }
+
+    function handleDrop(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log("Drop event");
+        $('#dropZone').removeClass('dragover');
+        const file = e.dataTransfer.files[0];
+        console.log("File dropped:", file.name);
+        if (file && file.name.endsWith('.docx')) {
+            const formData = new FormData();
+            formData.append('file', file);
+            $.ajax({
+                url: '/questions/import',
+                type: 'POST',
+                data: formData,
+                processData: false,
+                contentType: false,
+                success: function(questions) {
+                    console.log("Imported questions:", questions);
+                    questions.forEach(newQuestion => {
+                        const row = `
+                            <tr>
+                                <td>
+                                    <div>${newQuestion.text}</div>
+                                    <div class="answers-container mt-2">
+                                        ${newQuestion.answers.map(a => `
+                                            <div class="${a.correct ? 'answer-card correct-answer' : 'answer-card'}">
+                                                <div>${a.text}</div>
+                                                <div class="text-muted small mt-1">Note: ${a.explanation || ''}</div>
+                                            </div>`).join('')}
+                                    </div>
+                                </td>
+                                <td><span class="subject-badge">Imported</span></td>
+                                <td>Imported</td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-primary" data-id="${newQuestion.id}">Modifier</button>
+                                    <button class="btn btn-sm btn-outline-danger" data-id="${newQuestion.id}" onclick="deleteQuestion(this)">Supprimer</button>
+                                </td>
+                            </tr>`;
+                        $('#questionTable').append(row);
+                    });
+                    document.activeElement.blur();
+                    $('#questionModal').modal('hide');
+                },
+                error: function(xhr, status, error) {
+                    console.error("Import Error:", status, error, xhr.responseText);
+                }
+            });
+        } else {
+            $('#fileError').text('Veuillez uploader un fichier .docx');
+        }
+    }
+
+    $('#docxInput').change(function() {
+        console.log("File input changed");
+        const file = this.files[0];
+        if (file) handleDrop({ preventDefault: () => {}, stopPropagation: () => {}, dataTransfer: { files: [file] } });
+    });
+
+    function deleteQuestion(button) {
+        console.log("Delete clicked");
+        const id = $(button).data('id');
+        $.ajax({
+            url: `/questions/${id}`,
+            type: 'DELETE',
+            success: function() {
+                console.log("Deleted question:", id);
+                $(button).closest('tr').remove();
+            }
+        });
+    }
+
+    $(document).ready(function() {
+        console.log("Document ready");
+
+      $(document).on('click', '.btn-outline-primary', function() {
+    const id = $(this).data('id');
+    $.get(`/questions/${id}`, function(question) {
+        $('#editQuestionText').val(question.text);
+        $('#editQuestionId').val(id);
+        $('#editChapterId').val(question.chapterId); // Store chapterId
+        $('#editAnswersSection').empty();
+        question.answers.forEach(a => {
+            $('#editAnswersSection').append(`
+                <div class="answer-group mb-3">
+                    <div class="d-flex gap-2 mb-2">
+                        <input type="text" class="form-control answer-text" value="${a.text}" required>
+                        <div class="form-check">
+                            <input class="form-check-input correct-radio" type="radio" name="editCorrectAnswer" ${a.correct ? 'checked' : ''} required>
+                            <label class="form-check-label">Correcte</label>
+                        </div>
+                    </div>
+                    <textarea class="form-control answer-explanation">${a.explanation || ''}</textarea>
+                </div>
+            `);
+        });
+        $('#editQuestionModal').modal('show');
+    });
+});
+
+      $('#editQuestionForm').submit(function(e) {
+    e.preventDefault();
+    const id = $('#editQuestionId').val();
+    if (!$('input[name="editCorrectAnswer"]:checked').length) {
+        alert('Veuillez sélectionner une réponse correcte');
+        return;
+    }
+    const dto = {
+        text: $('#editQuestionText').val(),
+        chapterId: $('#editChapterId').val(), // Use the stored chapterId
+        answers: []
+    };
+    $('#editAnswersSection .answer-group').each(function() {
+        dto.answers.push({
+            text: $(this).find('.answer-text').val(),
+            correct: $(this).find('.correct-radio').is(':checked'),
+            explanation: $(this).find('.answer-explanation').val()
+        });
+    });
+    $.ajax({
+        url: `/questions/${id}`,
+        type: 'PUT',
+        contentType: 'application/json',
+        data: JSON.stringify(dto),
+        success: function(updatedQuestion) {
+            console.log("Update successful:", updatedQuestion);
+            $('#editQuestionModal').modal('hide');
+            window.location.reload(); // Reload after hiding modal
+        },
+        error: function(xhr, status, error) {
+            console.error("PUT error:", status, error, xhr.responseText);
+        }
+    });
+});
+    });
+</script>
+</body>
+</html>
