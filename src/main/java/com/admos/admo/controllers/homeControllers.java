@@ -11,6 +11,12 @@ public class homeControllers {
         model.addAttribute("message", "Hello, World!");
         return "home"; // This corresponds to the name of your Thymeleaf template (home.html)
     }
+
+    @GetMapping("/quiz-setup")
+    public String show_questions(){
+
+        return "student_quiz_setup";
+    }
    /* @GetMapping("/questions22")
     public String show_questions(){
 

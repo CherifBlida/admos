@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="fr" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Configurer Votre Quiz</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <style>
+        :root {
+            --couleur-bleu-clair: #6c9bcf;
+            --couleur-bleu-pale: #e6eef5;
+            --couleur-vert-clair: #4CAF50;
+        }
+        .setup-container {
+            max-width: 700px;
+            margin: 0 auto;
+        }
+        .section-card {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .chapter-search-list {
+            max-height: 250px;
+            overflow-y: auto;
+            background: var(--couleur-bleu-pale);
+            border: 1px solid #c7d8e8;
+            border-radius: 5px;
+            padding: 10px;
+        }
+        .chapter-item {
+            padding: 8px 12px;
+            margin: 5px 0;
+            background: white;
+            border-radius: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background 0.2s ease;
+        }
+        .chapter-item:hover {
+            background: #f0f5fa;
+        }
+        .selected-chapters-list {
+            min-height: 100px;
+            background: var(--couleur-bleu-pale);
+            border: 1px solid #c7d8e8;
+            border-radius: 5px;
+            padding: 10px;
+        }
+        .start-btn {
+            background: linear-gradient(45deg, var(--couleur-bleu-clair), #5a89b8);
+            border: none;
+            padding: 12px 30px;
+            font-size: 1.2em;
+            font-weight: bold;
+            border-radius: 25px;
+            box-shadow: 0 4px 10px rgba(108, 155, 207, 0.3);
+            transition: transform 0.2s ease;
+        }
+        .start-btn:hover {
+            transform: scale(1.05);
+            background: linear-gradient(45deg, #5a89b8, var(--couleur-bleu-clair));
+        }
+    </style>
+</head>
+<body>
+<div class="container-fluid p-4">
+    <div class="setup-container">
+        <!-- Header -->
+        <h1 class="text-center mb-4">Configurer Votre Quiz</h1>
+
+        <!-- Subject Selection -->
+        <div class="section-card">
+            <label for="subjectSelect" class="form-label fw-bold">Sujet</label>
+            <select class="form-select" id="subjectSelect">
+                <option value="">Choisir un sujet...</option>
+                <option th:each="subject : ${subjects}"
+                        th:value="${subject.id}"
+                        th:text="${subject.name}"></option>
+            </select>
+        </div>
+
+        <!-- Chapter Search and Selection -->
+        <div class="section-card">
+            <label for="chapterSearch" class="form-label fw-bold">Chapitres</label>
+            <input type="text" class="form-control mb-3" id="chapterSearch"
+                   placeholder="Rechercher des chapitres...">
+            <div class="chapter-search-list">
+                <div th:each="chapter : ${chapters}" class="chapter-item">
+                    <span th:text="${chapter.name}"></span>
+                    <button type="button" class="btn btn-sm btn-outline-primary"
+                            th:attr="data-chapter-id=${chapter.id}">Ajouter</button>
+                </div>
+                <div th:unless="${#lists.isEmpty(chapters)}" class="text-muted text-center p-3">
+                    Aucun chapitre disponible.
+                </div>
+            </div>
+        </div>
+
+        <!-- Selected Chapters -->
+        <div class="section-card">
+            <h5 class="fw-bold mb-3">Chapitres Sélectionnés</h5>
+            <div id="selectedChaptersList" class="selected-chapters-list">
+                <div class="text-muted text-center p-3" th:unless="${#lists.isEmpty(selectedChapters)}">
+                    Aucun chapitre sélectionné.
+                </div>
+            </div>
+        </div>
+
+        <!-- Start Quiz Button -->
+        <div class="text-center mt-4">
+            <button type="button" class="btn start-btn text-white">Démarrer le Quiz</button>
+        </div>
+    </div>
+</div>
+</body>
+</html>

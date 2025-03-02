@@ -99,6 +99,7 @@ public class QuestionController {
         dto.setId(question.getId());
         dto.setText(question.getText());
         dto.setChapterId(question.getChapter().getId());
+        dto.setSubjectId(question.getChapter().getSubject().getId()); // Add subjectId
         question.getAnswers().forEach(a -> {
             AnswerDto adto = new AnswerDto();
             adto.setId(a.getId());

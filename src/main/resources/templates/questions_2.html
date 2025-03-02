@@ -216,7 +216,30 @@
                 <form id="editQuestionForm">
                     <div class="modal-body">
                         <input type="hidden" id="editQuestionId">
-                        <input type="hidden" id="editChapterId">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Sujet</label>
+                                <div class="d-flex gap-2">
+                                    <select class="form-select" id="editSubjectSelect" required>
+                                        <option value="">Choisir un sujet...</option>
+                                        <option th:each="subject : ${subjects}" th:value="${subject.id}"
+                                                th:text="${subject.name}"></option>
+                                    </select>
+                                    <button type="button" class="btn btn-sm btn-outline-primary"
+                                            onclick="showAddSubjectModal()">+</button>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Chapitre</label>
+                                <div class="d-flex gap-2">
+                                    <select class="form-select" id="editChapterSelect" required>
+                                        <option value="">Choisir un chapitre...</option>
+                                    </select>
+                                    <button type="button" class="btn btn-sm btn-outline-primary"
+                                            onclick="showAddChapterModalForEdit()">+</button>
+                                </div>
+                            </div>
+                        </div>
                         <div class="mb-3">
                             <label class="form-label">Question</label>
                             <textarea class="form-control" id="editQuestionText" required></textarea>
@@ -477,17 +500,41 @@
         });
     }
 
-    $(document).ready(function() {
+   $(document).ready(function() {
         console.log("Document ready");
 
-      $(document).on('click', '.btn-outline-primary', function() {
+        // Handle "Modifier" button click
+       $(document).on('click', '.btn-outline-primary', function() {
+    console.log("Modifier button clicked");
     const id = $(this).data('id');
+    console.log("Question ID to edit:", id);
     $.get(`/questions/${id}`, function(question) {
+        console.log("Fetched question data:", question);
         $('#editQuestionText').val(question.text);
         $('#editQuestionId').val(id);
-        $('#editChapterId').val(question.chapterId); // Store chapterId
+
+        // Populate subject and chapter dropdowns
+        $('#editSubjectSelect').val(question.subjectId); // Set the subject
+        if (question.subjectId) {
+            $.get(`/questions/chapters?subjectId=${question.subjectId}`, function(chapters) {
+                console.log("Fetched chapters for edit:", chapters);
+                const chapterSelect = $('#editChapterSelect');
+                chapterSelect.empty().append('<option value="">Choisir un chapitre...</option>');
+                chapters.forEach(chapter => {
+                    chapterSelect.append(`<option value="${chapter.id}">${chapter.name}</option>`);
+                });
+                chapterSelect.val(question.chapterId); // Set the current chapter
+            }).fail(function(xhr, status, error) {
+                console.error("Error fetching chapters:", status, error, xhr.responseText);
+            });
+        } else {
+            $('#editChapterSelect').empty().append('<option value="">Choisir un chapitre...</option>');
+        }
+
+        // Populate answers
         $('#editAnswersSection').empty();
         question.answers.forEach(a => {
+            console.log("Adding answer:", a.text);
             $('#editAnswersSection').append(`
                 <div class="answer-group mb-3">
                     <div class="d-flex gap-2 mb-2">
@@ -501,44 +548,97 @@
                 </div>
             `);
         });
+        console.log("Showing edit modal");
         $('#editQuestionModal').modal('show');
+    }).fail(function(xhr, status, error) {
+        console.error("GET error:", status, error, xhr.responseText);
     });
 });
 
-      $('#editQuestionForm').submit(function(e) {
-    e.preventDefault();
-    const id = $('#editQuestionId').val();
-    if (!$('input[name="editCorrectAnswer"]:checked').length) {
-        alert('Veuillez sélectionner une réponse correcte');
-        return;
-    }
-    const dto = {
-        text: $('#editQuestionText').val(),
-        chapterId: $('#editChapterId').val(), // Use the stored chapterId
-        answers: []
-    };
-    $('#editAnswersSection .answer-group').each(function() {
-        dto.answers.push({
-            text: $(this).find('.answer-text').val(),
-            correct: $(this).find('.correct-radio').is(':checked'),
-            explanation: $(this).find('.answer-explanation').val()
+        // Dynamic chapter population for edit modal
+        $('#editSubjectSelect').change(function() {
+            console.log("Edit subject select changed");
+            const subjectId = $(this).val();
+            if (subjectId) {
+                $.get(`/questions/chapters?subjectId=${subjectId}`, function(chapters) {
+                    console.log("Fetched chapters:", chapters);
+                    const chapterSelect = $('#editChapterSelect');
+                    chapterSelect.empty().append('<option value="">Choisir un chapitre...</option>');
+                    chapters.forEach(chapter => {
+                        chapterSelect.append(`<option value="${chapter.id}">${chapter.name}</option>`);
+                    });
+                });
+            } else {
+                $('#editChapterSelect').empty().append('<option value="">Choisir un chapitre...</option>');
+            }
         });
-    });
-    $.ajax({
-        url: `/questions/${id}`,
-        type: 'PUT',
-        contentType: 'application/json',
-        data: JSON.stringify(dto),
-        success: function(updatedQuestion) {
-            console.log("Update successful:", updatedQuestion);
-            $('#editQuestionModal').modal('hide');
-            window.location.reload(); // Reload after hiding modal
-        },
-        error: function(xhr, status, error) {
-            console.error("PUT error:", status, error, xhr.responseText);
+
+        // Adjusted function for adding chapter in edit modal
+        function showAddChapterModalForEdit() {
+            console.log("Showing add chapter modal for edit");
+            if (!$('#editSubjectSelect').val()) {
+                alert('Veuillez sélectionner un sujet d\'abord');
+                return;
+            }
+            $('#addChapterModal').modal('show');
+            // Ensure chapter form submits with edit modal's subject
+            $('#chapterForm').off('submit').on('submit', function(e) {
+                e.preventDefault();
+                console.log("Submitting chapter form for edit");
+                const dto = { name: $('#chapterName').val(), subjectId: $('#editSubjectSelect').val() };
+                $.ajax({
+                    url: '/questions/chapters',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify(dto),
+                    success: function(chapter) {
+                        console.log("Chapter added:", chapter);
+                        $('#editChapterSelect').append(`<option value="${chapter.id}">${chapter.name}</option>`);
+                        $('#editChapterSelect').val(chapter.id); // Auto-select new chapter
+                        $('#addChapterModal').modal('hide');
+                        $('#chapterName').val('');
+                    }
+                });
+            });
         }
-    });
-});
+
+        // Handle edit form submission
+        $('#editQuestionForm').submit(function(e) {
+            e.preventDefault();
+            console.log("Edit form submitted");
+            const id = $('#editQuestionId').val();
+            console.log("Submitting edit for ID:", id);
+            if (!$('input[name="editCorrectAnswer"]:checked').length) {
+                alert('Veuillez sélectionner une réponse correcte');
+                return;
+            }
+            const dto = {
+                text: $('#editQuestionText').val(),
+                chapterId: $('#editChapterSelect').val(), // Use edit modal's chapter
+                answers: []
+            };
+            $('#editAnswersSection .answer-group').each(function() {
+                dto.answers.push({
+                    text: $(this).find('.answer-text').val(),
+                    correct: $(this).find('.correct-radio').is(':checked'),
+                    explanation: $(this).find('.answer-explanation').val()
+                });
+            });
+            $.ajax({
+                url: `/questions/${id}`,
+                type: 'PUT',
+                contentType: 'application/json',
+                data: JSON.stringify(dto),
+                success: function(updatedQuestion) {
+                    console.log("Update successful:", updatedQuestion);
+                    $('#editQuestionModal').modal('hide');
+                    window.location.reload();
+                },
+                error: function(xhr, status, error) {
+                    console.error("PUT error:", status, error, xhr.responseText);
+                }
+            });
+        });
     });
 </script>
 </body>

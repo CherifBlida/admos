@@ -16,6 +16,8 @@ public class ChapterService {
     private final ChapterRepository chapterRepository;
     private final SubjectRepository subjectRepository;
 
+
+
     @Autowired
     public ChapterService(ChapterRepository chapterRepository, SubjectRepository subjectRepository) {
         this.chapterRepository = chapterRepository;
@@ -24,6 +26,10 @@ public class ChapterService {
 
     public List<Chapter> getChaptersBySubjectId(Long subjectId) {
         return chapterRepository.findBySubjectId(subjectId);
+    }
+
+    public List<Chapter> getAllChapters() {
+        return chapterRepository.findAll();
     }
 
     @Transactional

@@ -11,6 +11,16 @@ public class QuestionDto extends BaseDTO{
     @NotBlank(message = "Question text is required")
     private String text;
     private Long chapterId;
+    private Long subjectId;
+
+    public Long getSubjectId() {
+        return subjectId;
+    }
+
+    public void setSubjectId(Long subjectId) {
+        this.subjectId = subjectId;
+    }
+
     @Size(min = 2, message = "At least 2 answers required")
     private List<AnswerDto> answers = new ArrayList<>();
 
